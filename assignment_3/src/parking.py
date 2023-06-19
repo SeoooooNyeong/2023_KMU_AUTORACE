@@ -19,7 +19,7 @@ xycar_msg = xycar_motor()
 #=============================================
 # 프로그램에서 사용할 변수, 저장공간 선언부
 #============================================= 
-rx, ry = [300, 350, 400, 450], [300, 350, 400, 450]
+rx, ry = [0, 0, 0, 1100], [0, 0, 0, 95] # 끝점만 프리셋 길이는 자유지만 planning range값을 바꿔줘야
 
 #=============================================
 # 프로그램에서 사용할 상수 선언부
@@ -47,7 +47,10 @@ def drive(angle, speed):
 def planning(sx, sy, syaw, max_acceleration, dt):
     global rx, ry
     print("Start Planning")
-
+    for i in range(3): # 끝점을 제외한 사이값을 계산하여 rx, ry를 업데이트
+    	rx[i] = (rx[3]-sx)/4*(i+1)+sx
+    	ry[i] = (ry[3]-sy)/4*(i+1)+sy
+    print(rx, ry)
     return rx, ry
 
 #=============================================
@@ -58,8 +61,27 @@ def planning(sx, sy, syaw, max_acceleration, dt):
 #=============================================
 def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
     global rx, ry
-    angle = np.radians(0)
     speed = 50
-    
-    drive(angle, speed)
-
+    if x < rx[0]: #첫번째 구간일때 (x값을 기준으로 했음)
+    	atan = math.atan((y-ry[0])/(rx[0]-x))*180/3.1415 (현재점과 현재목표점(1번점)사이의 직선을 그어 자표계의 360도법으로 변환)
+    	angle = yaw-atan (현재 핸들 각에서 위값을 빼준값을 새로운 핸들값)
+    	drive(angle, speed)
+    	print(1, f"yaw: {yaw}", f"atan: {atan}") #디버깅용
+    elif x < rx[1]:
+    	atan = math.atan((y-ry[1])/(rx[1]-x))*180/3.1415 # 
+    	angle = yaw-atan
+    	drive(angle, speed)
+    	print(2, f"yaw: {yaw}", f"atan: {atan}")
+    elif x < rx[2]:
+    	atan = math.atan((y-ry[2])/(rx[2]-x))*180/3.1415
+    	angle = yaw-atan
+    	drive(angle, speed)
+    	print(3, f"yaw: {yaw}", f"atan: {atan}")
+    elif x < rx[3]:
+    	atan = math.atan((y-ry[3])/(rx[3]-x))*180/3.1415
+    	angle = yaw-atan
+    	drive(angle, speed)
+    	print(4, f"yaw: {yaw}", f"atan: {atan}")
+    else:
+    	drive(0, 0)
+   # x의 값이 목보다 작을때만 동작함(x값을 기준으로 했기때문에). 시작점이 목표값보다 뒤에 있다면 오류.
