@@ -6,7 +6,7 @@ from std_msgs.msg import Int32MultiArray
 from xycar_msgs.msg import xycar_motor
 
 ultrasonicData = [0.0, 0.0, 0.0, 0.0, 0.0]
-# 0 left 1 lf 2 f 3 rf 4 r
+# (센서0: 왼쪽), (센서1: 왼쪽앞), (센서2: 앞), (센서3: 오른쪽앞), (센서4: 오른쪽)
 
 def callback(msg): 
     global ultrasonicData
@@ -52,7 +52,7 @@ while not rospy.is_shutdown():
     else:
         xycar_msg.angle = 0
         xycar_msg.speed = 50
-        
+
     #=========================================
     # 변경된 각도와 속도 publish
     #=========================================
