@@ -39,7 +39,7 @@ while not rospy.is_shutdown():
         xycar_msg.angle = 30
         xycar_msg.speed = 50
     #=========================================
-    # 오른쪽으로 치우친 경우 <왼쪽 앞 센서 > 오른쪽 앞 센서)
+    # 오른쪽으로 치우친 경우 (왼쪽 앞 센서 > 오른쪽 앞 센서)
     # 왼쪽으로 30도 회전한다
     #=========================================
     elif ultrasonicData[3] < ultrasonicData[1]:
