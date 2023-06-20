@@ -19,8 +19,11 @@ xycar_msg = xycar_motor()
 #=============================================
 # 프로그램에서 사용할 변수, 저장공간 선언부
 #============================================= 
-rx, ry = [0, 0, 0, 1100], [0, 0, 0, 95] # 끝점만 프리셋 길이는 자유지만 planning range값을 바꿔줘야
-
+rx = [0 for _ in range(100)]
+ry = [0 for _ in range(100)]
+rx[-1] = 1100
+ry[-1] = 95
+i = 0 # 글로벌 변수 i지정
 #=============================================
 # 프로그램에서 사용할 상수 선언부
 #=============================================
@@ -45,12 +48,12 @@ def drive(angle, speed):
 # 경로를 리스트를 생성하여 반환한다.
 #=============================================
 def planning(sx, sy, syaw, max_acceleration, dt):
-    global rx, ry
+    global rx, ry, i
+    i = 0 #플래닝 할때마다 i초기화
     print("Start Planning")
-    for i in range(3): # 끝점을 제외한 사이값을 계산하여 rx, ry를 업데이트
-    	rx[i] = (rx[3]-sx)/4*(i+1)+sx
-    	ry[i] = (ry[3]-sy)/4*(i+1)+sy
-    print(rx, ry)
+    for k in range(100): # 100개 점을 플래닝함
+    	rx[k] = (rx[-1]-sx)/100*(k+1)+sx
+    	ry[k] = (ry[-1]-sy)/100*(k+1)+sy
     return rx, ry
 
 #=============================================
@@ -60,28 +63,16 @@ def planning(sx, sy, syaw, max_acceleration, dt):
 # 각도와 속도를 결정하여 주행한다.
 #=============================================
 def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
-    global rx, ry
+    global rx, ry, i
     speed = 50
-    if x < rx[0]: #첫번째 구간일때 (x값을 기준으로 했음)
-    	atan = math.atan((y-ry[0])/(rx[0]-x))*180/3.1415 (현재점과 현재목표점(1번점)사이의 직선을 그어 자표계의 360도법으로 변환)
-    	angle = yaw-atan (현재 핸들 각에서 위값을 빼준값을 새로운 핸들값)
-    	drive(angle, speed)
-    	print(1, f"yaw: {yaw}", f"atan: {atan}") #디버깅용
-    elif x < rx[1]:
-    	atan = math.atan((y-ry[1])/(rx[1]-x))*180/3.1415 # 
-    	angle = yaw-atan
-    	drive(angle, speed)
-    	print(2, f"yaw: {yaw}", f"atan: {atan}")
-    elif x < rx[2]:
-    	atan = math.atan((y-ry[2])/(rx[2]-x))*180/3.1415
-    	angle = yaw-atan
-    	drive(angle, speed)
-    	print(3, f"yaw: {yaw}", f"atan: {atan}")
-    elif x < rx[3]:
-    	atan = math.atan((y-ry[3])/(rx[3]-x))*180/3.1415
-    	angle = yaw-atan
-    	drive(angle, speed)
-    	print(4, f"yaw: {yaw}", f"atan: {atan}")
+    if i >= 99: # 점의 끝까지 가면 스탑
+        drive(0,0)
+    elif y > ry[i]: # i번째 점과의 직선과의 각도차이 계산
+        atan = math.atan((y-ry[i])/(rx[i]-x))*180/3.1415
+        if atan < 0:
+            atan += 180
+        angle = yaw-atan
+        drive(angle, speed)
+        print(f"yaw: {yaw}", f"atan: {atan}")
     else:
-    	drive(0, 0)
-   # x의 값이 목보다 작을때만 동작함(x값을 기준으로 했기때문에). 시작점이 목표값보다 뒤에 있다면 오류.
+        i+=1 # 점을 넘어갈때 i증가하여 다음 점 추적
