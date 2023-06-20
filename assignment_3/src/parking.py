@@ -19,15 +19,15 @@ xycar_msg = xycar_motor()
 #=============================================
 # 프로그램에서 사용할 변수, 저장공간 선언부
 #============================================= 
-rx, ry = [], []
-i = 0 # 글로벌 i 선언
-iMax = 0
-isTooClose = False
+rx, ry = [], []    # 이동 경로를 담는 리스트
+i = 0              # 이동 경로 tracking을 위한 pointer
+iMax = 0           # planning 경로 리스트 점의 개수
+isTooClose = False # 시작점과 목적지의 거리가 가까운지 판단하는 boolean
 
-k  = 0.5   # control gain
+k  = 0.5  # control gain
 Kp = 1.0  # speed proportional gain
 dt = 0.1  # [s] time difference
-L  = 2.9   # [m] Wheel base of vehicle
+L  = 2.9  # [m] Wheel base of vehicle
 max_steer = np.radians(30.0)  # [rad] max steering angle
 
 show_animation = True
@@ -35,9 +35,9 @@ show_animation = True
 #=============================================
 # 프로그램에서 사용할 상수 선언부
 #=============================================
-AR = (1142, 62) # AR 태그의 위치
+AR = (1142, 62)      # AR 태그의 위치
 P_ENTRY = (1100, 95) # 주차라인 진입 시점의 좌표
-P_END = (1129, 69) # 주차라인 끝의 좌표
+P_END = (1129, 69)   # 주차라인 끝의 좌표
 
 MAX_T = 100.0  # maximum time to the goal[s]
 MIN_T = 10.0   # minimum time to the goal[s]
@@ -184,7 +184,7 @@ def drive(angle, speed):
 #=============================================
 # 경로를 생성하는 함수
 # 차량의 시작위치 sx, sy, 시작각도 syaw
-# 최대가속도 max_acceleration, 단위시간 dt 를 전달받고
+# 최대가속도 max_acceleration, 단위시간 dtt 를 전달받고
 # 경로를 리스트를 생성하여 반환한다.
 #=============================================
 def planning(px, py, ssyaw, max_acceleration, dtt):
@@ -193,6 +193,7 @@ def planning(px, py, ssyaw, max_acceleration, dtt):
     global sx, sy, syaw
     print("Start Planning")
     
+    # 시작점과 목적지 사이의 거리가 300 미만이라면 isTooClose = True
     isTooClose = False
     if math.sqrt((px-P_ENTRY[0])**2 + (py-P_ENTRY[1])**2) < 300:
         isTooClose = True 
@@ -211,7 +212,7 @@ def planning(px, py, ssyaw, max_acceleration, dtt):
     
     max_accel = max_acceleration  # max accel [m/ss]
     max_jerk = 10  # max jerk [m/sss]
-    dt = dtt  # time tick [s] 점 거리
+    dt = dtt       # time tick [s] 점 거리
     print(dtt)
     time, rx, ry, cyaw, v, a, j = quintic_polynomials_planner(
         sx, sy, syaw, sv, sa, gx, gy, gyaw, gv, ga, max_accel, max_jerk, dt)
@@ -231,7 +232,8 @@ def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
     global rx, ry, i, iMax, P_END, isTooClose
     speed = 50
     
-    # 거리 가까운지 판단
+    # 현 위치와 목적지 사이의 거리가 300 넘을 때까지 후진
+    # 현 위치와 목적지 사이의 거리가 300 초과이면 planning 수행
     if isTooClose==True and math.sqrt((x-P_END[0])**2 + (y-P_END[1])**2) > 300:
         isTooClose = False
         planning(x, y, yaw, max_acceleration, dt)
