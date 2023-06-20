@@ -22,6 +22,7 @@ xycar_msg = xycar_motor()
 rx, ry = [], []
 i = 0 # 글로벌 i 선언
 iMax = 0
+isTooClose = False
 
 k  = 0.5   # control gain
 Kp = 1.0  # speed proportional gain
@@ -35,7 +36,7 @@ show_animation = True
 # 프로그램에서 사용할 상수 선언부
 #=============================================
 AR = (1142, 62) # AR 태그의 위치
-P_ENTRY = (1036, 162) # 주차라인 진입 시점의 좌표
+P_ENTRY = (1100, 95) # 주차라인 진입 시점의 좌표
 P_END = (1129, 69) # 주차라인 끝의 좌표
 
 MAX_T = 100.0  # maximum time to the goal[s]
@@ -187,10 +188,14 @@ def drive(angle, speed):
 # 경로를 리스트를 생성하여 반환한다.
 #=============================================
 def planning(px, py, ssyaw, max_acceleration, dtt):
-    global rx, ry, i, iMax
+    global rx, ry, i, iMax, isTooClose, P_ENTRY
     global time, rx, ry, cyaw, v, a, j
     global sx, sy, syaw
     print("Start Planning")
+    
+    isTooClose = False
+    if math.sqrt((px-P_ENTRY[0])**2 + (py-P_ENTRY[1])**2) < 300:
+        isTooClose = True 
     
     sx = px  # start x position [m]
     sy = py  # start y position [m]
@@ -223,9 +228,20 @@ def planning(px, py, ssyaw, max_acceleration, dtt):
 # 각도와 속도를 결정하여 주행한다.
 #=============================================
 def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
-    global rx, ry, i, iMax
+    global rx, ry, i, iMax, P_END, isTooClose
     speed = 50
-    if i >= iMax:
+    
+    # 거리 가까운지 판단
+    if isTooClose==True and math.sqrt((x-P_END[0])**2 + (y-P_END[1])**2) > 300:
+        isTooClose = False
+        planning(x, y, yaw, max_acceleration, dt)
+        return 0
+    if isTooClose == True:
+        drive(0,-50)
+        return 0
+        
+        
+    if i >= iMax-1:
         drive(0,0)
     elif y > ry[i]:
         atan = math.atan((ry[i]-ry[i+1])/(rx[i+1]-rx[i]))*180/3.1415
