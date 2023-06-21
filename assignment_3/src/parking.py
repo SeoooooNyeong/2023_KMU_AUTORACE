@@ -190,27 +190,27 @@ def planning(px, py, ssyaw, max_acceleration, dtt):
     if math.sqrt((px-P_ENTRY[0])**2 + (py-P_ENTRY[1])**2) < 300:
         isTooClose = True 
     
-    sx = px  # start x position [m]
-    sy = py  # start y position [m]
-    syaw = ssyaw  # start yaw angle [rad]
-    sv = 10.0  # start speed [m/s]
-    sa = 2.0   # start accel [m/ss]
+    sx = px  # 시작점 x 좌표 [단위:m]
+    sy = py  # 시작점 y 좌표 [단위:m]
+    syaw = ssyaw  # 시작 각도 [단위:rad]
+    sv = 10.0  # 시작 속도  [단위:m/s]
+    sa = 2.0   # 시작 가속도 [단위:m/ss]
     
-    gx = P_ENTRY[0]  # goal x position [m]
-    gy = P_ENTRY[1]  # goal y position [m]
-    gyaw = np.deg2rad(-45)  # goal yaw angle [rad]
-    gv = 10.0  # goal speed [m/s]
-    ga = 2.0   # goal accel [m/ss]
+    gx = P_ENTRY[0]  # 목적지 x 좌표 [단위:m]
+    gy = P_ENTRY[1]  # 목적지 y 좌표 [단위:m]
+    gyaw = np.deg2rad(-45)  # 목적지 도달 시 각도 [단위:rad]
+    gv = 10.0  # 도착 시 속도  [단위:m/s]
+    ga = 2.0   # 도착 시 가속도 [단위:m/ss]
     
-    max_accel = max_acceleration  # max accel [m/ss]
-    max_jerk = 10  # max jerk [m/sss]
-    dt = dtt       # time tick [s] 점 거리
+    max_accel = max_acceleration  # 가속도 최댓값 [단위:m/ss]
+    max_jerk = 10  # 가속도를 미분한 값 [단위:m/sss]
+    dt = dtt       # 점 거리 [단위:s]
     print(dtt)
     time, rx, ry, cyaw, v, a, j = quintic_polynomials_planner(
         sx, sy, syaw, sv, sa, gx, gy, gyaw, gv, ga, max_accel, max_jerk, dt)
     
-    i = 0
-    iMax = len(ry)
+    i = 0          # 경로 리스트 원소를 가리키는 포인터 변수 초기화
+    iMax = len(ry) # 포인터 변수 최댓값 설정
     print(ry)
     return rx, ry
 
@@ -224,12 +224,15 @@ def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
     global rx, ry, i, iMax, P_END, isTooClose
     speed = 50
     
-    # 현 위치와 목적지 사이의 거리가 300 넘을 때까지 후진
     # 현 위치와 목적지 사이의 거리가 300 초과이면 planning 수행
     if isTooClose==True and math.sqrt((x-P_END[0])**2 + (y-P_END[1])**2) > 300:
+        # 매우 가까운 상태에서 후진하여 거리가 300을 넘으면 거리 상태 갱신
         isTooClose = False
+        # 거리가 충분히 멀어지면 planning 재수행
         planning(x, y, yaw, max_acceleration, dt)
         return 0
+    # 시작 위치와 목적지 사이의 거리가 가깝다면
+    # 현 위치와 목적지 사이의 거리가 300 넘을 때까지 후진
     if isTooClose == True:
         drive(0,-50)
         return 0
