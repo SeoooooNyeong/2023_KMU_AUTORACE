@@ -35,128 +35,148 @@ MAX_T = 100.0  # maximum time to the goal[s]
 MIN_T = 10.0   # minimum time to the goal[s]
 
 #=============================================
-# 
+# 시간에 대한 위치를 나타내는 5차 다항식 객체
+# Q(t) = a0 + (a1 * t) + (a2 * t**2) + (a3 * t**3) + (a4 * t**4) + (a5 * t**5)
 #=============================================
 class QuinticPolynomial:
     #xqp = QuinticPolynomial(sx, vxs, axs, gx, vxg, axg, T) #도착지 sx, vxs, axs / 목적지 gx, vxg , axg, T
     def __init__(self, xs, vxs, axs, xe, vxe, axe, time):
-        # calc coefficient of quintic polynomial
-        # See jupyter notebook document for derivation of this equation.
-        self.a0 = xs
-        self.a1 = vxs
-        self.a2 = axs / 2.0
+        # 5차 다항식 계수 계산
+        self.a0 = xs        # 상수항: 초기 위치
+        self.a1 = vxs       # 일차항 계수: 초기 속도
+        self.a2 = axs / 2.0 # 이차항 계수: 초기 가속도
 
+        # 시간에 대한 위치, 속도, 가속도를 근사한 표현
         A = np.array([[time ** 3, time ** 4, time ** 5],
                       [3 * time ** 2, 4 * time ** 3, 5 * time ** 4],
                       [6 * time, 12 * time ** 2, 20 * time ** 3]])
         b = np.array([xe - self.a0 - self.a1 * time - self.a2 * time ** 2,
                       vxe - self.a1 - 2 * self.a2 * time,
                       axe - 2 * self.a2])
+
+        # 3차항, 4차항, 5차항 계수 계산
         x = np.linalg.solve(A, b)
 
         self.a3 = x[0]
         self.a4 = x[1]
         self.a5 = x[2]
 
+    # 주어진 시간에 따른 위치 계산
     def calc_point(self, t):
         xt = self.a0 + self.a1 * t + self.a2 * t ** 2 + \
              self.a3 * t ** 3 + self.a4 * t ** 4 + self.a5 * t ** 5
 
         return xt
 
+    # 주어진 시간에 따른 속도 계산
     def calc_first_derivative(self, t):
         xt = self.a1 + 2 * self.a2 * t + \
              3 * self.a3 * t ** 2 + 4 * self.a4 * t ** 3 + 5 * self.a5 * t ** 4
 
         return xt
 
+    # 주어진 시간에 따른 가속도 계산
     def calc_second_derivative(self, t):
         xt = 2 * self.a2 + 6 * self.a3 * t + 12 * self.a4 * t ** 2 + 20 * self.a5 * t ** 3
 
         return xt
 
+    # 주어진 시간에 따른 가가속도 계산
     def calc_third_derivative(self, t):
         xt = 6 * self.a3 + 24 * self.a4 * t + 60 * self.a5 * t ** 2
 
         return xt
     
 #=============================================
-
+# 5차 다항식을 이용하여 주어진 조건에 맞는 경로를 계획하는 함수
 #=============================================
 def quintic_polynomials_planner(sx, sy, syaw, sv, sa, gx, gy, gyaw, gv, ga, max_accel, max_jerk, dt):
     """
     quintic polynomial planner
 
     input
-        s_x: start x position [m]
-        s_y: start y position [m]
-        s_yaw: start yaw angle [rad]
-        sa: start accel [m/ss]
-        gx: goal x position [m]
-        gy: goal y position [m]
-        gyaw: goal yaw angle [rad]
-        ga: goal accel [m/ss]
-        max_accel: maximum accel [m/ss]
-        max_jerk: maximum jerk [m/sss]
-        dt: time tick [s]
+        sx:   시작 x 좌표
+        sy:   시작 y 좌표
+        syaw: 시작 yaw 각도 [단위: rad]
+        sv:   시작 속도
+        sa:   시작 가속도
+        gx:   목표 x 좌표
+        gy:   목표 y 좌표
+        gyaw: 목표점에서 yaw 각도 [단위: rad]
+        gv:   목표점에서 속도
+        ga:   목표점에서 가속도
+        max_accel: 최대 가속도
+        max_jerk:  최대 가가속도
+        dt: time tick
 
     return
-        time: time result
-        rx: x position result list
-        ry: y position result list
-        ryaw: yaw angle result list
-        rv: velocity result list
-        ra: accel result list
+        time: time
+        rx: x 좌표 list
+        ry: y 좌표 list
+        ryaw: yaw 각도 list
+        rv: 속도 list
+        ra: 가속도 list
 
     """
-    #속도 x축 y축 분해
+    # 시작 속도 x축 y축 분해
     vxs = sv * math.cos(syaw)
     vys = sv * math.sin(syaw)
+    # 목표 속도 x축 y축 분해
     vxg = gv * math.cos(gyaw)
     vyg = gv * math.sin(gyaw)
     
-    #가속도 x축 y축 분해
+    # 시작 가속도 x축 y축 분해
     axs = sa * math.cos(syaw)
     ays = sa * math.sin(syaw)
+    # 목표 가속도 x축 y축 분해
     axg = ga * math.cos(gyaw)
     ayg = ga * math.sin(gyaw)
 
+    # return 값 초기화
     time, rx, ry, ryaw, rv, ra, rj = [], [], [], [], [], [], []
 
+    # 다항식의 T 값(시간)을 조절하며 경로를 계산
     for T in np.arange(MIN_T, MAX_T, MIN_T):
-        xqp = QuinticPolynomial(sx, vxs, axs, gx, vxg, axg, T) #도착지 sx, vxs, axs / 목적지 gx, vxg , axg, T
-        
+        # 주어진 초기 조건과 목표 조건을 사용하여 x축 및 y축에 대한 5차 다항식 객체 생성
+        # 도착지 sx, vxs, axs | 목적지 gx, vxg , axg, T
+        xqp = QuinticPolynomial(sx, vxs, axs, gx, vxg, axg, T)
         yqp = QuinticPolynomial(sy, vys, ays, gy, vyg, ayg, T)
 
-
+        # return 값 초기화
         time, rx, ry, ryaw, rv, ra, rj = [], [], [], [], [], [], []
 
+        # 시간에 따른 위치, 속도, 가속도, 가가속도를 계산하는 반복문
+        # 0부터 T까지 dt 간격으로 반복하여 각 시간에 대한 위치와 도함수 값을 계산
         for t in np.arange(0.0, T + dt, dt):
-            time.append(t)
-            rx.append(xqp.calc_point(t))
-            ry.append(yqp.calc_point(t))
 
-            vx = xqp.calc_first_derivative(t)
-            vy = yqp.calc_first_derivative(t)
-            v = np.hypot(vx, vy)
-            yaw = math.atan2(vy, vx)
-            rv.append(v)
-            ryaw.append(yaw)
+            time.append(t) # 시간 저장
+            rx.append(xqp.calc_point(t)) # x 좌표 저장
+            ry.append(yqp.calc_point(t)) # y 좌표 저장
 
-            ax = xqp.calc_second_derivative(t)
-            ay = yqp.calc_second_derivative(t)
-            a = np.hypot(ax, ay)
+            vx = xqp.calc_first_derivative(t) # x축 속도 계산
+            vy = yqp.calc_first_derivative(t) # y축 속도 계산
+            v = np.hypot(vx, vy)     # 속도의 크기 계산
+            yaw = math.atan2(vy, vx) # 속도의 방향 계산
+            rv.append(v)     # 속도 저장
+            ryaw.append(yaw) # 방향 저장
+
+            ax = xqp.calc_second_derivative(t) # x축 가속도 계산
+            ay = yqp.calc_second_derivative(t) # y축 가속도 계산
+            a = np.hypot(ax, ay) # 가속도의 크기 계산
+            # 속도가 감소하는 지점에서는 가속도의 부호를 바꾼다
             if len(rv) >= 2 and rv[-1] - rv[-2] < 0.0:
                 a *= -1
-            ra.append(a)
+            ra.append(a) # 가속도 저장
 
-            jx = xqp.calc_third_derivative(t)
-            jy = yqp.calc_third_derivative(t)
-            j = np.hypot(jx, jy)
+            jx = xqp.calc_third_derivative(t) # x축 가가속도 계산
+            jy = yqp.calc_third_derivative(t) # y축 가가속도 계산
+            j = np.hypot(jx, jy) # 가가속도의 크기 계산
+            # 가속도가 감소하는 지점에서 가가속도의 부호를 바꾼다
             if len(ra) >= 2 and ra[-1] - ra[-2] < 0.0:
                 j *= -1
-            rj.append(j)
+            rj.append(j) # 가가속도 저장
 
+        # 가속도와 가가속도의 최댓값이 주어진 범위 내에 있는지 확인한다
         if max([abs(i) for i in ra]) <= max_accel and max([abs(i) for i in rj]) <= max_jerk:
             print("find path!!")
             break
@@ -190,22 +210,24 @@ def planning(px, py, ssyaw, max_acceleration, dtt):
     if math.sqrt((px-P_ENTRY[0])**2 + (py-P_ENTRY[1])**2) < 300:
         isTooClose = True 
     
-    sx = px  # 시작점 x 좌표 [단위:m]
-    sy = py  # 시작점 y 좌표 [단위:m]
-    syaw = ssyaw  # 시작 각도 [단위:rad]
-    sv = 10.0  # 시작 속도  [단위:m/s]
-    sa = 2.0   # 시작 가속도 [단위:m/ss]
+    sx = px  # 시작 x 좌표
+    sy = py  # 시작 y 좌표
+    syaw = ssyaw  # 시작 yaw 각도 [단위: rad]
+    sv = 10.0  # 시작 속도
+    sa = 2.0   # 시작 가속도
     
-    gx = P_ENTRY[0]  # 목적지 x 좌표 [단위:m]
-    gy = P_ENTRY[1]  # 목적지 y 좌표 [단위:m]
-    gyaw = np.deg2rad(-45)  # 목적지 도달 시 각도 [단위:rad]
-    gv = 10.0  # 도착 시 속도  [단위:m/s]
-    ga = 2.0   # 도착 시 가속도 [단위:m/ss]
+    gx = P_ENTRY[0]  # 목표 x 좌표
+    gy = P_ENTRY[1]  # 목표 y 좌표
+    gyaw = np.deg2rad(-45)  # 목표점에서 yaw 각도 [rad]
+    gv = 10.0  # 목표점에서 속도
+    ga = 2.0   # 목표점에서 가속도
     
-    max_accel = max_acceleration  # 가속도 최댓값 [단위:m/ss]
-    max_jerk = 10  # 가속도를 미분한 값 [단위:m/sss]
-    dt = dtt       # 점 거리 [단위:s]
+    max_accel = max_acceleration  # 최대 가속도
+    max_jerk = 10  # 최대 가가속도
+    dt = dtt       # time tick 점 거리
     print(dtt)
+
+    # 경로 계획
     time, rx, ry, cyaw, v, a, j = quintic_polynomials_planner(
         sx, sy, syaw, sv, sa, gx, gy, gyaw, gv, ga, max_accel, max_jerk, dt)
     
@@ -228,7 +250,7 @@ def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
     if isTooClose==True and math.sqrt((x-P_END[0])**2 + (y-P_END[1])**2) > 300:
         # 매우 가까운 상태에서 후진하여 거리가 300을 넘으면 거리 상태 갱신
         isTooClose = False
-        # 거리가 충분히 멀어지면 planning 재수행
+        # 거리가 충분히 멀어졌으므로 planning 재수행
         planning(x, y, yaw, max_acceleration, dt)
         return 0
     # 시작 위치와 목적지 사이의 거리가 가깝다면
