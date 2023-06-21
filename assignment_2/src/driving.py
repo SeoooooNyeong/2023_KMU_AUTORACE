@@ -15,13 +15,16 @@ import signal
 import sys
 import os
 
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import pickle
+
 
 Width = 640
 Height = 480
 warp_Offset = 120
 
 # 트랙 동영상 읽어 들이기
-cap = cv2.VideoCapture('0205.png\차선검출용_영상3.mp4')
 window_title = 'camera'
 window_title2 = 'camera2'
 
@@ -38,8 +41,8 @@ minpix = 5
 lane_bin_th = 145
 
 warp_src  = np.array([
-    [45, 350],  
-    [-50, 400],
+    [100, 350],  
+    [0, 400],
     [Width - 100, 350],
     [Width, 400]
 ], dtype=np.float32)
@@ -51,28 +54,6 @@ warp_dist = np.array([
     [warp_img_w, warp_img_h]
 ], dtype=np.float32)
 
-calibrated = True
-if calibrated:
-    # 자이카 카메라의 Calibration 보정값
-    mtx = np.array([
-        [422.037858, 0.0, 245.895397], 
-        [0.0, 435.589734, 163.625535], 
-        [0.0, 0.0, 1.0]
-    ])
-    dist = np.array([-0.289296, 0.061035, 0.001786, 0.015238, 0.0])
-    cal_mtx, cal_roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (Width, Height), 1, (Width, Height))
-
-def calibrate_image(frame):
-    global Width, Height
-    global mtx, dist
-    global cal_mtx, cal_roi
-    
-    # 위에서 구한 보정 행렬값을 적용하여 이미지를 반듯하게 수정하는 함수(undistort() 호출해서 이미지 수정)
-    tf_image = cv2.undistort(frame, mtx, dist, None, cal_mtx)
-    x, y, w, h = cal_roi
-    tf_image = tf_image[y:y+h, x:x+w]
-
-    return cv2.resize(tf_image, (Width, Height))
 
 # 변환전과 후의 4개 점 좌표를 전댈해서 이미지를 원근변환 처리하여 새로운 이미지로 만들기
 def warp_image(img, src, dst, size):
@@ -88,14 +69,14 @@ def warp_process_image(img):
     global minpix
     global lane_bin_th
     
-    # 이미지에서 가우시안 블러링으로 노이즈 제거
-    blur = cv2.GaussianBlur(img,(5, 5), 0)
-
-    # HSL 포맷에서 L채널을 이용하면 흰색선을 쉽게 구분할 수 있음(노란색은 LAB에서 B채널)
-    _, L, _ = cv2.split(cv2.cvtColor(blur, cv2.COLOR_BGR2HLS))
-    # 임계값은 현재 이미지의 상태에 따라 낮추거나 올리기
-    _, lane = cv2.threshold(L, lane_bin_th, 255, cv2.THRESH_BINARY)
-    cv2.imshow('L', L)
+    #discard yellow pixel in image
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    lower_red = np.array([0, 0, 255])
+    upper_red = np.array([0, 255, 255])
+    mask = cv2.inRange(hsv, lower_red, upper_red)
+    kernel = np.ones((4, 4), np.uint8)
+    lane = cv2.erode(mask, kernel)
+    
     # 히스토그램이란 이미지를 구성하는 픽셀 분포에 대한 그래프
     # (1) x축: 픽셀의 x 좌표값
     # (2) y축: 특정 x 좌표값을 갖는 모든 흰색 픽셀의 개수
@@ -257,6 +238,7 @@ def drive(angle, speed):
 # 차선의 위치를 파악한 후에 조향각을 결정하고,
 # 최종적으로 모터 토픽을 발행하는 일을 수행함.
 #=============================================
+
 def start():
 
     # 위에서 선언한 변수를 start() 안에서 사용하고자 함
@@ -285,10 +267,9 @@ def start():
 
         # 이미지 처리를 위해 카메라 원본 이미지를 img에 복사 저장한다.
         img = image.copy()
-
         
-        warp_img, M, Minv = warp_image(image, warp_src, warp_dist, (warp_img_w, warp_img_h))
-        warp_img[warp_img_h//4:warp_img_h//4*3,warp_img_w//4:warp_img_w//4*3] = 0
+        warp_img, M, Minv = warp_image(img, warp_src, warp_dist, (warp_img_w, warp_img_h))
+        
         left_fit, right_fit = warp_process_image(warp_img)
         lane_img = draw_lane(image, warp_img, Minv, left_fit, right_fit)
         
@@ -300,38 +281,19 @@ def start():
         # steer_img = draw_steer(lane_img, steer_angle)
         
         # print(lpos, rpos)
-        drive(angle, 50)
-        #cv2.imshow('frame', frame)
-        #cv2.imshow('image', image)
+        drive(steer_angle, 50)
+        for r in warp_src:
+            cv2.circle(image, (r[0], r[1]), 5, (255,0,0))
+                
+        cv2.imshow('image', image)
         cv2.imshow(window_title, warp_img)
         cv2.imshow(window_title2, lane_img)
-
-        k = cv2.waitKey(1) & 0xff
-        if k == 27 : break
-
+        
+        cv2.imshow("warp", warp_img)
 
         # img를 화면에 출력한다.
         cv2.imshow("CAM View", img)
         cv2.waitKey(1)
-
-        #=========================================
-        # 핸들 조향각 값인 angle값 정하기.
-        # 차선의 위치 정보를 이용해서 angle값을 설정함.
-        #=========================================
-
-        # 핸들을 얼마나 꺾을지 결정
-        angle = 0
-
-        #=========================================
-        # 차량의 속도 값인 speed값 정하기.
-        # 주행 속도를 조절하기 위해 speed값을 설정함.
-        #=========================================
-
-        # 주행 속도를 결정
-        speed = 10
-
-        # drive() 호출. drive()함수 안에서 모터 토픽이 발행됨.
-        drive(angle, speed)
 
 
 #=============================================
