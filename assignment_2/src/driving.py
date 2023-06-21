@@ -32,15 +32,15 @@ nwindows = 9
 # 슬라이딩 윈도우 넓이
 margin = 12
 # 선을 그리기 위해 최소한 있어야 할 점의 개수
-minpix = 5
+minpix = 3
 
 lane_bin_th = 145
 
 warp_src  = np.array([
-    [100, 350],  
-    [0, 400],
-    [Width - 100, 350],
-    [Width, 400]
+    [-130, 350],  
+    [-200, 400],
+    [Width + 130, 350],
+    [Width + 200, 400]
 ], dtype=np.float32)
 
 warp_dist = np.array([
@@ -65,14 +65,13 @@ def warp_process_image(img):
     global minpix
     global lane_bin_th
     
-    # 이미지에서 가우시안 블러링으로 노이즈 제거
-    blur = cv2.GaussianBlur(img,(5, 5), 0)
-
-    # HSL 포맷에서 L채널을 이용하면 흰색선을 쉽게 구분할 수 있음(노란색은 LAB에서 B채널)
-    _, L, _ = cv2.split(cv2.cvtColor(blur, cv2.COLOR_BGR2HLS))
-    # 임계값은 현재 이미지의 상태에 따라 낮추거나 올리기
-    _, lane = cv2.threshold(L, lane_bin_th, 255, cv2.THRESH_BINARY)
-    cv2.imshow('L', L)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    lower_red = np.array([0, 0, 255])
+    upper_red = np.array([0, 255, 255])
+    mask = cv2.inRange(hsv, lower_red, upper_red)
+    kernel = np.ones((4, 4), np.uint8)
+    lane = cv2.erode(mask, kernel)
+    
     # 히스토그램이란 이미지를 구성하는 픽셀 분포에 대한 그래프
     # (1) x축: 픽셀의 x 좌표값
     # (2) y축: 특정 x 좌표값을 갖는 모든 흰색 픽셀의 개수
@@ -80,9 +79,9 @@ def warp_process_image(img):
     # x축(x좌표)을 반으로 나누어 왼쪽 차선과 오른쪽 차선을 구분하기      
     midpoint = np.int(histogram.shape[0]/2)
     # 왼쪽 절반 구역에서 흰색 픽셀의 개수가 가장 많은 위치를 슬라이딩 윈도우의 왼쪽 시작 위치로 잡기
-    leftx_current = np.argmax(histogram[:midpoint-100])
+    leftx_current = np.argmax(histogram[:midpoint])
     # 오른쪽 절반 구역에서 흰색 픽셀의 개수가 가장 많은 위치를 슬라이딩 윈도우의 오른쪽 시작 위치로 잡기
-    rightx_current = np.argmax(histogram[midpoint+100:]) + midpoint+100
+    rightx_current = np.argmax(histogram[midpoint:]) + midpoint
 
     window_height = np.int(lane.shape[0]/nwindows)
     nz = lane.nonzero()
@@ -272,24 +271,21 @@ def start():
         rpos = get_pos_from_fit(right_fit, y=warp_Offset, left=False, right=True)
         center = (lpos + rpos) / 2
         angle = warp_img_w/2 - center
-        steer_angle = angle *0.5 
+        steer_angle = angle *0.3
         # steer_img = draw_steer(lane_img, steer_angle)
         
         # print(lpos, rpos)
         drive(steer_angle, 5)
         for r in warp_src:
-            cv2.circle(image, (r[0], r[1]), 5, (255,0,0))
+            cv2.circle(img, (r[0], r[1]), 5, (255,0,0))
                 
-        cv2.imshow('image', image)
+        cv2.imshow('image', img)
         cv2.imshow(window_title, warp_img)
         cv2.imshow(window_title2, lane_img)
 
         k = cv2.waitKey(1) & 0xff
         if k == 27 : break
-
-
-        # img를 화면에 출력한다.
-        cv2.imshow("CAM View", img)
+        
         cv2.waitKey(1)
 
 
