@@ -132,9 +132,6 @@ def quintic_polynomials_planner(sx, sy, syaw, sv, sa, gx, gy, gyaw, gv, ga, max_
     axg = ga * math.cos(gyaw)
     ayg = ga * math.sin(gyaw)
 
-    # return 값 초기화
-    time, rx, ry, ryaw, rv, ra, rj = [], [], [], [], [], [], []
-
     # 다항식의 T 값(시간)을 조절하며 경로를 계산
     for T in np.arange(MIN_T, MAX_T, MIN_T):
         # 주어진 초기 조건과 목표 조건을 사용하여 x축 및 y축에 대한 5차 다항식 객체 생성
