@@ -32,15 +32,15 @@ nwindows = 9
 # 슬라이딩 윈도우 넓이
 margin = 12
 # 선을 그리기 위해 최소한 있어야 할 점의 개수
-minpix = 3
+minpix = 5
 
 lane_bin_th = 145
 
 warp_src  = np.array([
-    [-130, 350],  
-    [-200, 400],
-    [Width + 130, 350],
-    [Width + 200, 400]
+    [100, 350],  
+    [0, 400],
+    [Width - 100, 350],
+    [Width, 400]
 ], dtype=np.float32)
 
 warp_dist = np.array([
@@ -271,21 +271,24 @@ def start():
         rpos = get_pos_from_fit(right_fit, y=warp_Offset, left=False, right=True)
         center = (lpos + rpos) / 2
         angle = warp_img_w/2 - center
-        steer_angle = angle *0.3
+        steer_angle = angle *0.5 
         # steer_img = draw_steer(lane_img, steer_angle)
         
         # print(lpos, rpos)
         drive(steer_angle, 5)
         for r in warp_src:
-            cv2.circle(img, (r[0], r[1]), 5, (255,0,0))
+            cv2.circle(image, (r[0], r[1]), 5, (255,0,0))
                 
-        cv2.imshow('image', img)
+        cv2.imshow('image', image)
         cv2.imshow(window_title, warp_img)
         cv2.imshow(window_title2, lane_img)
 
         k = cv2.waitKey(1) & 0xff
         if k == 27 : break
-        
+
+
+        # img를 화면에 출력한다.
+        cv2.imshow("CAM View", img)
         cv2.waitKey(1)
 
 
