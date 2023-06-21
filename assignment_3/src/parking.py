@@ -259,25 +259,34 @@ def tracking(screen, x, y, yaw, velocity, max_acceleration, dt):
         drive(0,-50)
         return 0
         
-        
+    # 플래닝 된 경로를 모두 tracking 하였다면 주행 종료
     if i >= iMax-1:
         drive(0,0)
     elif y > ry[i]:
+        # planning 트랙을 다항함수로 간주하고 현재 차량이 목표로 하고있는 점에서의 미분값을 구해 360도법으로 변환
         atan = math.atan((ry[i]-ry[i+1])/(rx[i+1]-rx[i]))*180/3.1415
         if atan < 0:
             atan += 180
-        #오차 계산하여 보정
-        error = x - rx[i]
+        # 차량 기울기가 목표점의 기울기와 평행해지면 오차가 없다고 판단하기 때문에 목표점과의 x 좌표 차이를 활용해서 오차를 계산하여 보정
+        error = x - rx[i] # 차량과 목표점의 x좌표 차이 
+
+        # 핸들 최대각이 -50~50 이기에 범위를 벗어나는 값은 50,-50으로 잘라줌 
         if error > 50:
             error = 50
         elif error < -50:
             error = -50
+
+        # 오차가 작아질수록 오차반영이 작아져 영원히 만나지 않으므로 오차의 하한선을 정해줌
         if 0<error<20:
             error = 20
         elif -20<error<0:
             error = -20
+
+        # 오차를 -10~10 도로 비례하게 줄여줌 
         error /= 5
+        # 위 계산값에 오차를 반영하여 각도를 정해줌
         angle = yaw-atan-error
+
         drive(angle, speed)
         print(f"yaw: {yaw}", f"atan: {atan}")
     else:
