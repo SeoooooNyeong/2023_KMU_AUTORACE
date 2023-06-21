@@ -31,20 +31,24 @@ AR = (1142, 62)      # AR 태그의 위치
 P_ENTRY = (1100, 95) # 주차라인 진입 시점의 좌표
 P_END = (1129, 69)   # 주차라인 끝의 좌표
 
-MAX_T = 100.0  # maximum time to the goal[s]
-MIN_T = 10.0   # minimum time to the goal[s]
+MAX_T = 100.0  # 목표점까지 최대 시간
+MIN_T = 10.0   # 목표점까지 최소 시간
 
 #=============================================
 # 시간에 대한 위치를 나타내는 5차 다항식 객체
+# 5차 다항식으로 경로를 근사함
 # Q(t) = a0 + (a1 * t) + (a2 * t**2) + (a3 * t**3) + (a4 * t**4) + (a5 * t**5)
 #=============================================
 class QuinticPolynomial:
-    #xqp = QuinticPolynomial(sx, vxs, axs, gx, vxg, axg, T) #도착지 sx, vxs, axs / 목적지 gx, vxg , axg, T
+    # xqp = QuinticPolynomial(sx, vxs, axs, gx, vxg, axg, T)
+    # 도착지: sx 초기 위치, vxs 초기 속도, axs 초기 가속도
+    # 목적지: gx 목표 위치, vxg 목표 속도, axg 목표 가속도
+    # T 시간
     def __init__(self, xs, vxs, axs, xe, vxe, axe, time):
         # 5차 다항식 계수 계산
         self.a0 = xs        # 상수항: 초기 위치
         self.a1 = vxs       # 일차항 계수: 초기 속도
-        self.a2 = axs / 2.0 # 이차항 계수: 초기 가속도
+        self.a2 = axs / 2.0 # 이차항 계수: 초기 가속도 / 2
 
         # 시간에 대한 위치, 속도, 가속도를 근사한 표현
         A = np.array([[time ** 3, time ** 4, time ** 5],
@@ -135,7 +139,8 @@ def quintic_polynomials_planner(sx, sy, syaw, sv, sa, gx, gy, gyaw, gv, ga, max_
     # 다항식의 T 값(시간)을 조절하며 경로를 계산
     for T in np.arange(MIN_T, MAX_T, MIN_T):
         # 주어진 초기 조건과 목표 조건을 사용하여 x축 및 y축에 대한 5차 다항식 객체 생성
-        # 도착지 sx, vxs, axs | 목적지 gx, vxg , axg, T
+        # 도착지 sx, vxs, axs | 목적지 gx, vxg , axg
+        # 시간 T
         xqp = QuinticPolynomial(sx, vxs, axs, gx, vxg, axg, T)
         yqp = QuinticPolynomial(sy, vys, ays, gy, vyg, ayg, T)
 
