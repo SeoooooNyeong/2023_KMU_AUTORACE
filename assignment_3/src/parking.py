@@ -21,16 +21,8 @@ xycar_msg = xycar_motor()
 #============================================= 
 rx, ry = [], []    # 이동 경로를 담는 리스트
 i = 0              # 이동 경로 tracking을 위한 pointer
-iMax = 0           # planning 경로 리스트 점의 개수
+iMax = 0           # planning 경로 리스트 점의 개수(i 최댓값)
 isTooClose = False # 시작점과 목적지의 거리가 가까운지 판단하는 boolean
-
-k  = 0.5  # control gain
-Kp = 1.0  # speed proportional gain
-dt = 0.1  # [s] time difference
-L  = 2.9  # [m] Wheel base of vehicle
-max_steer = np.radians(30.0)  # [rad] max steering angle
-
-show_animation = True
 
 #=============================================
 # 프로그램에서 사용할 상수 선언부
@@ -183,7 +175,7 @@ def drive(angle, speed):
 
 #=============================================
 # 경로를 생성하는 함수
-# 차량의 시작위치 sx, sy, 시작각도 syaw
+# 차량의 시작위치 px, py, 시작각도 syaw
 # 최대가속도 max_acceleration, 단위시간 dtt 를 전달받고
 # 경로를 리스트를 생성하여 반환한다.
 #=============================================
